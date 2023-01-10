@@ -9,3 +9,5 @@ This project is a translation of a plain Threejs project to React Threejs projec
 Do not hesitate if you have any questions.
 
 ## Demo
+
+![demo](https://user-images.githubusercontent.com/11999669/211594465-5be0c4e3-e251-4ec0-b8e2-151f55b08b50.gif)
