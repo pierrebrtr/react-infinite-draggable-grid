@@ -230,7 +230,6 @@ const App = () => {
 
     function onMouseMove({ clientX, clientY }) {
       if (!isDragging) return
-      console.log(planes[0].position)
       tx = on.x + clientX * 2.5
       ty = on.y - clientY * 2.5
     }
