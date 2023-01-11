@@ -108,7 +108,7 @@ const App = () => {
 
       this.geometry = geometry
       this.material = material.clone()
-
+      this.isInCenter = false
       this.material.uniforms = {
         u_texture: { value: 0 },
         u_res: { value: new THREE.Vector2(1, 1) },
@@ -169,14 +169,17 @@ const App = () => {
 
     hide() {
       //this.material.uniforms.uOpacity.value = 0
-      this.mesh.renderOrder = 0
-      gsap.fromTo(this.material.uniforms.uOpacity, {
-        value: 1,
-      }, {
-        value: 0,
-        duration: 1,
-        ease: "expo.inOut"
-      })
+      if (!this.isInCenter) {
+        this.mesh.renderOrder = 0
+        gsap.fromTo(this.material.uniforms.uOpacity, {
+          value: 1,
+        }, {
+          value: 0,
+          duration: 1,
+          ease: "expo.inOut"
+        })
+      }
+
     }
 
     inCenter() {
@@ -263,6 +266,7 @@ const App = () => {
 
     renderer.setClearColor(0xffffff, 0);
     mountRef.current.appendChild(renderer.domElement);
+
     addPlanes();
     addEvents();
     addTick()
@@ -270,14 +274,15 @@ const App = () => {
 
 
     function addPlanes() {
-      const planesDiv = [...document.querySelectorAll('.js-plane')]
-
+      let planesDiv = []
+      planes = []
+      scene.clear()
+      planesDiv = [...document.querySelectorAll('.js-plane')]
       planesDiv.map((el, i) => {
         const plane = new Plane()
         plane.init(el, i)
         planes.push(plane)
         scene.add(plane)
-
       })
 
     }
@@ -345,6 +350,7 @@ const App = () => {
 
     function hideElements(obj) {
       const tempPlanes = planes.filter(plane => plane != obj.parent)
+      obj.isInCenter = true
       tempPlanes.map((plane) => {
         plane.hide()
       })
