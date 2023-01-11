@@ -41,7 +41,7 @@ precision mediump float;
 
 uniform vec2 u_res;
 uniform vec2 u_size;
-
+uniform float uOpacity;
 uniform sampler2D u_texture;
 
 vec2 cover(vec2 screenSize, vec2 imageSize, vec2 uv) {
@@ -67,9 +67,10 @@ void main() {
   vec4 texture = texture2D(u_texture, uvCover);
 
   gl_FragColor = texture;
+
+  gl_FragColor.a = texture.a * uOpacity;
 }
 `
-
 const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
 const material = new THREE.ShaderMaterial({
   fragmentShader,
@@ -101,6 +102,7 @@ const App = () => {
       this.el = el
       this.x = 0
       this.y = 0
+      this.center = { value: 1 }
 
       this.my = 1 - ((i % 5) * 0.1)
 
@@ -111,7 +113,8 @@ const App = () => {
         u_texture: { value: 0 },
         u_res: { value: new THREE.Vector2(1, 1) },
         u_size: { value: new THREE.Vector2(1, 1) },
-        u_diff: { value: 0 }
+        u_diff: { value: 0 },
+        uOpacity: { value: 100 },
       }
 
       this.texture = loader.load(this.el.dataset.src, (texture) => {
@@ -128,7 +131,6 @@ const App = () => {
 
       this.mesh = new THREE.Mesh(this.geometry, this.material)
       this.add(this.mesh)
-
       this.resize()
     }
 
@@ -150,8 +152,72 @@ const App = () => {
 
       u_diff.value = diff
 
-      this.position.x = this.x
-      this.position.y = this.y
+      this.position.x = this.x * this.center.value
+      this.position.y = this.y * this.center.value
+    }
+
+
+    // hide() {
+    //   const t = [this.plane.program.uniforms.uOpacity, this.art.program.uniforms.uOpacity, ...this.textObjects.map((t => t.program.uniforms.uOpacity))];
+    //   this.opacityTween && (this.opacityTween.kill(), this.opacityTween = null), this.opacityTween = x.default.to(t, {
+    //     value: 0,
+    //     duration: 1,
+    //     ease: "expo.inOut"
+    //   })
+    // }
+
+
+    hide() {
+      //this.material.uniforms.uOpacity.value = 0
+      this.mesh.renderOrder = 0
+      gsap.fromTo(this.material.uniforms.uOpacity, {
+        value: 1,
+      }, {
+        value: 0,
+        duration: 1,
+        ease: "expo.inOut"
+      })
+    }
+
+    inCenter() {
+
+      this.mesh.renderOrder = 1
+      this.isInCenter = true
+      const mesh = this.mesh
+      gsap.to(this.center, {
+        value: 0, duration: 1, ease: "expo.inOut"
+      }
+      )
+      this.currentOffset = this.position
+    }
+
+
+    reveal() {
+      if (this.isInCenter) {
+        const mesh = this.mesh
+        // gsap.to(mesh.position, {
+        //   x: this.currentOffset.x, y: this.currentOffset.y, duration: 1, ease: "expo.inOut"
+        // }
+        // )
+        gsap.to(this.center, {
+          value: 1, duration: 1, ease: "expo.inOut"
+        }
+        ).then(() => {
+          this.mesh.renderOrder = 0
+          this.isInCenter = false
+        })
+      } else {
+
+        gsap.fromTo(this.material.uniforms.uOpacity, {
+          value: 0,
+        }, {
+          value: 1,
+          duration: 1,
+          ease: "expo.inOut"
+        })
+
+      }
+
     }
 
     resize() {
@@ -174,6 +240,9 @@ const App = () => {
     }
   }
 
+  const delay = ms => new Promise(
+    resolve => setTimeout(resolve, ms)
+  );
 
   useEffect(() => {
 
@@ -186,37 +255,62 @@ const App = () => {
     camera.lookAt(scene.position)
     camera.position.z = 1
 
-    var renderer = new THREE.WebGLRenderer({ antialias: true })
+    var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(ww, wh)
     renderer.setPixelRatio(
       gsap.utils.clamp(1, 1.5, window.devicePixelRatio)
     )
 
+    renderer.setClearColor(0xffffff, 0);
     mountRef.current.appendChild(renderer.domElement);
     addPlanes();
     addEvents();
+    addTick()
     resize()
+
 
     function addPlanes() {
       const planesDiv = [...document.querySelectorAll('.js-plane')]
 
-
       planesDiv.map((el, i) => {
         const plane = new Plane()
         plane.init(el, i)
-        scene.add(plane)
         planes.push(plane)
+        scene.add(plane)
+
       })
 
     }
 
-    function addEvents() {
+    let currentOffset = { x: 0, y: 0 }
+    let isOpen = false
+
+    function addTick() {
       gsap.ticker.add(tick)
+    }
+
+    function addEvents() {
+
+
+      // window.addEventListener('tick', tick)
 
       window.addEventListener('mousemove', onMouseMove)
       window.addEventListener('mousedown', onMouseDown)
       window.addEventListener('mouseup', onMouseUp)
       window.addEventListener('wheel', onWheel)
+      window.removeEventListener('click', click)
+    }
+
+    function removeEvents() {
+
+
+      // window.addEventListener('tick', tick)
+
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('wheel', onWheel)
+      window.addEventListener('click', click)
     }
 
     function resize() {
@@ -228,49 +322,100 @@ const App = () => {
       max.y = bottom
     }
 
+    let clickPos = { x: 0, y: 0 }
+
+
     function onMouseMove({ clientX, clientY }) {
-      if (!isDragging) return
-      tx = on.x + clientX * 2.5
-      ty = on.y - clientY * 2.5
+      if (!isOpen) {
+        if (!isDragging) return
+
+        tx = on.x + clientX * 2.5
+        ty = on.y - clientY * 2.5
+      }
     }
 
     function onMouseDown({ clientX, clientY }) {
       if (isDragging) return
-
       isDragging = true
-
+      clickPos = { x: clientX, y: clientY }
       on.x = tx - clientX * 2.5
       on.y = ty + clientY * 2.5
     }
 
-    function onMouseUp({ clientX, clientY }) {
-      if (!isDragging) return
 
+    function hideElements(obj) {
+      const tempPlanes = planes.filter(plane => plane != obj.parent)
+      tempPlanes.map((plane) => {
+        plane.hide()
+      })
+    }
+
+    function revealElements() {
+      planes.map((plane) => {
+        plane.reveal()
+      })
+    }
+
+    async function click() {
+
+      if (!isOpen) {
+        var mouse = new THREE.Vector2();
+        mouse.x = (clickPos.x / window.innerWidth) * 2 - 1;
+        mouse.y = -(clickPos.y / window.innerHeight) * 2 + 1;
+
+        var raycaster = new THREE.Raycaster();
+        //update the picking ray with the camera and mouse position	
+        raycaster.setFromCamera(mouse, camera);
+
+
+        //calculate objects intersecting the picking ray
+        var intersects = raycaster.intersectObjects(scene.children);
+        var obj = intersects[0].object;
+        hideElements(obj)
+        obj.parent.inCenter()
+        await delay(1500);
+        removeEvents()
+      } else {
+        revealElements()
+        await delay(1500);
+
+        addEvents()
+      }
+      isOpen = !isOpen
+    }
+
+    function onMouseUp({ clientX, clientY }) {
+
+      if (!isDragging) return
+      if (clickPos.x === clientX && clickPos.y === clientY) {
+        click()
+      }
       isDragging = false
     }
 
     function tick() {
 
-      const xDiff = tx - cx
-      const yDiff = ty - cy
+      if (!isOpen) {
+        const xDiff = tx - cx
+        const yDiff = ty - cy
 
-      cx += xDiff * 0.085
-      cx = Math.round(cx * 100) / 100
+        cx += xDiff * 0.085
+        cx = Math.round(cx * 100) / 100
 
-      cy += yDiff * 0.085
-      cy = Math.round(cy * 100) / 100
+        cy += yDiff * 0.085
+        cy = Math.round(cy * 100) / 100
 
-      diff = Math.max(
-        Math.abs(yDiff * 0.0001),
-        Math.abs(xDiff * 0.0001)
-      )
+        diff = Math.max(
+          Math.abs(yDiff * 0.0001),
+          Math.abs(xDiff * 0.0001)
+        )
+      }
 
       planes.length
         && planes.forEach(plane =>
           plane.update(cx, cy, max, diff))
 
       renderer.render(scene, camera)
-
     }
 
     function onWheel(e) {
@@ -296,6 +441,7 @@ const App = () => {
 
   return (
     <>
+      <div className="background"></div>
       <div ref={mountRef}></div>
       <div className="grid js-grid">
         <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
