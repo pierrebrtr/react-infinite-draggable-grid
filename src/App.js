@@ -460,16 +460,12 @@ const App = () => {
 
     function onMouseMove(t) {
 
-      let n = t.clientX;
-      let s = t.clientY;
-      mouse.x = n / ww * 2 - 1;
-      mouse.y = -s / wh * 2 + 1
-
+      mouse.x = (t.clientX / ww * 2 - 1);
+      mouse.y = (-t.clientY / wh * 2 + 1);
 
       if (isDragging) {
-        target.set(on.x + 2.5 * n, on.y - 2.5 * s)
+        target.set(on.x + 2.5 * (t.clientX / 400), on.y - 2.5 * (t.clientY / 400))
       }
-
     }
 
     function onMouseDown(t) {
@@ -477,7 +473,7 @@ const App = () => {
       let n = t.clientX;
       let s = t.clientY;
       isDragging = true;
-      on.set(target.x - 2.5 * n, target.y + 2.5 * s)
+      on.set(target.x - 2.5 * (n / 400), target.y + 2.5 * (s / 400))
     }
 
 
