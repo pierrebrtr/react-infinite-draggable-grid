@@ -123,53 +123,53 @@ const App = () => {
 
 
   const mountRef = useRef(null);
-  var tx = 0;
-  var ty = 0;
   var cx = 0;
   var cy = 0;
-  var diff = 0;
 
-  var wheel = { x: 0, y: 0 }
-  var on = { x: 0, y: 0 }
   var max = { x: 0, y: 0 }
 
   var isDragging = false;
   var tl = gsap.timeline({ paused: true })
-  var el = document.querySelector('.js-grid')
   var planes = []
 
   class MainMesh extends THREE.Object3D {
-    init(el, i) {
-      this.el = el
+    init(i, position) {
+
       this.i = i
       this.x = 0
       this.y = 0
       this.center = { value: 1 }
-
-
+      this.spacing = 0
+      this.startPosition = position
 
       this.my = 1 - ((i % 5) * 0.1)
-      this.createArt()
       this.createPlane()
-    }
-
-    createArt() {
-      this.art = new ArtPlane()
-      this.art.init(this.el, this.i)
-      this.add(this.art)
-      this.art.resize()
     }
 
     createPlane() {
       this.plane = new Plane()
-      this.plane.init(this.el, this.i)
+      this.plane.init(this.i)
       this.add(this.plane)
       this.plane.resize()
     }
 
-    update = (x, y, max, diff) => {
-      this.art.update(x, y, max, diff)
-      this.plane.update(x, y, max, diff)
+    update = (pos, widthDividedByTwo) => {
+
+      this.x = gsap.utils.wrap(
+        -(widthDividedByTwo.x - this.spacing),
+        widthDividedByTwo.x,
+        this.startPosition.x + pos.x + 0
+      )
+
+      this.y = gsap.utils.wrap(
+        -(widthDividedByTwo.y - this.spacing),
+        widthDividedByTwo.y,
+        this.startPosition.y + pos.y + 0.55
+      )
+
+      this.position.x = this.x * this.center.value
+      this.position.y = this.y * this.center.value
+
     }
 
     hide() {
@@ -188,8 +188,8 @@ const App = () => {
   }
 
   class Plane extends THREE.Object3D {
-    init(el, i) {
-      this.el = el
+    init(i) {
+
       this.x = 0
       this.y = 0
       this.center = { value: 1 }
@@ -204,7 +204,7 @@ const App = () => {
         u_size: { value: new THREE.Vector2(1, 1) },
         u_diff: { value: 0 },
         uOpacity: { value: 100 },
-        uProgress: { value: 0.02 },
+        uProgress: { value: 0.92 },
       }
 
 
@@ -214,183 +214,12 @@ const App = () => {
       this.resize()
     }
 
-    update = (x, y, max, diff) => {
-      const { right, bottom } = this.rect
-      const { u_diff } = this.material.uniforms
-
-      this.y = gsap.utils.wrap(
-        -(max.y - bottom),
-        bottom,
-        y * this.my
-      ) - this.yOffset
-
-      this.x = gsap.utils.wrap(
-        -(max.x - right),
-        right,
-        x
-      ) - this.xOffset
-
-      u_diff.value = diff
-
-      this.position.x = this.x * this.center.value
-      this.position.y = this.y * this.center.value
-    }
-
-    hide() {
-      //TODO
-    }
-
-
-
 
     resize() {
-
-      this.rect = this.el.getBoundingClientRect()
-      const { left, top, width, height } = this.rect
-
-
-      this.xOffset = (left + (width / 2)) - (ww / 2)
-      this.yOffset = (top + (height / 2)) - (wh / 2)
-
-      this.position.x = this.xOffset
-      this.position.y = this.yOffset
-
-
-      this.mesh.scale.set(width, height, 1)
+      this.mesh.scale.set(150, 150, 1)
     }
   }
 
-  class ArtPlane extends THREE.Object3D {
-    init(el, i) {
-      this.el = el
-      this.x = 0
-      this.y = 0
-      this.center = { value: 1 }
-
-      this.my = 1 - ((i % 5) * 0.1)
-
-      this.geometry = geometry
-      this.material = material.clone()
-      this.isInCenter = false
-      this.material.uniforms = {
-        u_texture: { value: 0 },
-        u_res: { value: new THREE.Vector2(1, 1) },
-        u_size: { value: new THREE.Vector2(1, 1) },
-        u_diff: { value: 0 },
-        uOpacity: { value: 100 },
-      }
-
-      this.texture = loader.load(this.el.dataset.src, (texture) => {
-        texture.minFilter = THREE.LinearFilter
-        texture.generateMipmaps = false
-
-        const { naturalWidth, naturalHeight } = texture.image
-        const { u_size, u_texture } = this.material.uniforms
-
-        u_texture.value = texture
-        u_size.value.x = naturalWidth
-        u_size.value.y = naturalHeight
-      })
-
-      this.mesh = new THREE.Mesh(this.geometry, this.material)
-      this.mesh.renderOrder = 1
-      this.add(this.mesh)
-      this.resize()
-    }
-
-    update = (x, y, max, diff) => {
-      const { right, bottom } = this.rect
-      const { u_diff } = this.material.uniforms
-
-      this.y = gsap.utils.wrap(
-        -(max.y - bottom),
-        bottom,
-        y * this.my
-      ) - this.yOffset
-
-      this.x = gsap.utils.wrap(
-        -(max.x - right),
-        right,
-        x
-      ) - this.xOffset
-
-      u_diff.value = diff
-
-      this.position.x = this.x * this.center.value
-      this.position.y = this.y * this.center.value
-    }
-
-    hide() {
-      //this.material.uniforms.uOpacity.value = 0
-      if (!this.isInCenter) {
-        this.mesh.renderOrder = 0
-        gsap.fromTo(this.material.uniforms.uOpacity, {
-          value: 1,
-        }, {
-          value: 0,
-          duration: 1,
-          ease: "expo.inOut"
-        })
-      }
-
-    }
-
-    inCenter() {
-      this.mesh.renderOrder = 1
-      this.isInCenter = true
-      const mesh = this.mesh
-      gsap.to(this.center, {
-        value: 0, duration: 1, ease: "expo.inOut"
-      }
-      )
-      this.currentOffset = this.position
-    }
-
-
-    reveal() {
-      if (this.isInCenter) {
-        const mesh = this.mesh
-        gsap.to(this.center, {
-          value: 1, duration: 1, ease: "expo.inOut"
-        }
-        ).then(() => {
-          this.mesh.renderOrder = 0
-          this.isInCenter = false
-        })
-      } else {
-
-        gsap.fromTo(this.material.uniforms.uOpacity, {
-          value: 0,
-        }, {
-          value: 1,
-          duration: 1,
-          ease: "expo.inOut"
-        })
-
-      }
-
-    }
-
-    resize() {
-
-      this.rect = this.el.getBoundingClientRect()
-      console.log(this.rect)
-      const { left, top, width, height } = this.rect
-
-      const { u_res, u_toRes, u_pos, u_offset } = this.material.uniforms
-
-      this.xOffset = (left + (width / 2)) - (ww / 2)
-      this.yOffset = (top + (height / 2)) - (wh / 2)
-
-      this.position.x = this.xOffset
-      this.position.y = this.yOffset
-
-      u_res.value.x = width
-      u_res.value.y = height
-
-      this.mesh.scale.set(width / 1.3, height / 1.3, 1)
-    }
-  }
 
   const delay = ms => new Promise(
     resolve => setTimeout(resolve, ms)
@@ -421,20 +250,63 @@ const App = () => {
     addTick()
     resize()
 
-    console.log(scene)
-
-
     function addPlanes() {
-      let planesDiv = []
       planes = []
       scene.clear()
-      planesDiv = [...document.querySelectorAll('.js-plane')]
-      planesDiv.map((el, i) => {
-        const plane = new MainMesh()
-        plane.init(el, i)
-        planes.push(plane)
-        scene.add(plane)
-      })
+
+      const plane = new MainMesh()
+      plane.init(1, new THREE.Vector3(0, 0, 0))
+      planes.push(plane)
+      scene.add(plane)
+
+      const plane2 = new MainMesh()
+      plane2.init(2, new THREE.Vector3(170, 0, 0))
+      planes.push(plane2)
+      scene.add(plane2)
+
+      const plane3 = new MainMesh()
+      plane3.init(3, new THREE.Vector3(340, 0, 0))
+      planes.push(plane3)
+      scene.add(plane3)
+
+      const plane4 = new MainMesh()
+      plane4.init(3, new THREE.Vector3(0, 170, 0))
+      planes.push(plane4)
+      scene.add(plane4)
+
+
+      const plane5 = new MainMesh()
+      plane5.init(3, new THREE.Vector3(170, 170, 0))
+      planes.push(plane5)
+      scene.add(plane5)
+
+      const plane6 = new MainMesh()
+      plane6.init(3, new THREE.Vector3(340, 170, 0))
+      planes.push(plane6)
+      scene.add(plane6)
+
+      const plane7 = new MainMesh()
+      plane7.init(3, new THREE.Vector3(0, 340, 0))
+      planes.push(plane7)
+      scene.add(plane7)
+
+      const plane8 = new MainMesh()
+      plane8.init(3, new THREE.Vector3(170, 340, 0))
+      planes.push(plane8)
+      scene.add(plane8)
+
+      const plane9 = new MainMesh()
+      plane9.init(3, new THREE.Vector3(340, 340, 0))
+      planes.push(plane9)
+      scene.add(plane9)
+
+
+      planes.forEach((t => {
+        t.startPosition.x -= 150 / 2;
+        t.startPosition.y -= 150 / 2;
+        t.position.x -= 150 / 2;
+        t.position.y -= 150 / 2
+      }))
 
     }
 
@@ -454,7 +326,6 @@ const App = () => {
       window.addEventListener('mousedown', onMouseDown)
       window.addEventListener('mouseup', onMouseUp)
       window.addEventListener('wheel', onWheel)
-      window.removeEventListener('click', click)
     }
 
     function removeEvents() {
@@ -466,7 +337,7 @@ const App = () => {
       window.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('mouseup', onMouseUp)
       window.removeEventListener('wheel', onWheel)
-      window.addEventListener('click', click)
+
     }
 
     function resize() {
@@ -481,103 +352,47 @@ const App = () => {
     let clickPos = { x: 0, y: 0 }
 
 
-    function onMouseMove({ clientX, clientY }) {
-      if (!isOpen) {
-        if (!isDragging) return
 
-        tx = on.x + clientX * 2.5
-        ty = on.y - clientY * 2.5
+
+    let current = new THREE.Vector3()
+    let target = new THREE.Vector3()
+    let on = new THREE.Vector3()
+    let mouse = new THREE.Vector3()
+    let wheel = new THREE.Vector3()
+    let pos = new THREE.Vector3(0, 0)
+    let vel = new THREE.Vector3()
+
+    function onMouseMove(t) {
+
+      let n = t.clientX;
+      let s = t.clientY;
+      mouse.x = n / ww * 2 - 1;
+      mouse.y = -s / wh * 2 + 1;
+
+      if (isDragging) {
+        target.set(on.x + 2.5 * n, on.y - 2.5 * s)
       }
+
     }
 
-    function onMouseDown({ clientX, clientY }) {
+    function onMouseDown(t) {
       if (isDragging) return
-      isDragging = true
-      clickPos = { x: clientX, y: clientY }
-      on.x = tx - clientX * 2.5
-      on.y = ty + clientY * 2.5
+      let n = t.clientX;
+      let s = t.clientY;
+      isDragging = true;
+      on.set(target.x - 2.5 * n, target.y + 2.5 * s)
     }
 
 
-    function hideElements(obj) {
-      const tempPlanes = planes.filter(plane => plane != obj.parent)
-      obj.isInCenter = true
-      tempPlanes.map((plane) => {
-        plane.hide()
-      })
-    }
-
-    function revealElements() {
-      planes.map((plane) => {
-        plane.reveal()
-      })
-    }
-
-    async function click() {
-
-      if (!isOpen) {
-        var mouse = new THREE.Vector2();
-        mouse.x = (clickPos.x / window.innerWidth) * 2 - 1;
-        mouse.y = -(clickPos.y / window.innerHeight) * 2 + 1;
-
-        var raycaster = new THREE.Raycaster();
-        //update the picking ray with the camera and mouse position	
-        raycaster.setFromCamera(mouse, camera);
-
-
-        //calculate objects intersecting the picking ray
-        var intersects = raycaster.intersectObjects(scene.children);
-        var obj = intersects[0].object;
-        hideElements(obj)
-        obj.parent.inCenter()
-        await delay(1500);
-        removeEvents()
-      } else {
-        revealElements()
-        await delay(1500);
-
-        addEvents()
+    function onMouseUp(t) {
+      if (isDragging) {
+        isDragging = false
       }
-      isOpen = !isOpen
-    }
-
-    function onMouseUp({ clientX, clientY }) {
-
-      if (!isDragging) return
-      if (clickPos.x === clientX && clickPos.y === clientY) {
-        click()
-      }
-      isDragging = false
-    }
-
-    function tick() {
-
-      if (!isOpen) {
-        const xDiff = tx - cx
-        const yDiff = ty - cy
-
-        cx += xDiff * 0.085
-        cx = Math.round(cx * 100) / 100
-
-        cy += yDiff * 0.085
-        cy = Math.round(cy * 100) / 100
-
-        diff = Math.max(
-          Math.abs(yDiff * 0.0001),
-          Math.abs(xDiff * 0.0001)
-        )
-      }
-
-      planes.length
-        && planes.forEach(plane =>
-          plane.update(cx, cy, max, diff))
-
-      renderer.render(scene, camera)
     }
 
     function onWheel(e) {
-      const { mouse, firefox } = multipliers
 
+      const { mouse, firefox } = multipliers
       wheel.x = e.wheelDeltaX || e.deltaX * -1
       wheel.y = e.wheelDeltaY || e.deltaY * -1
 
@@ -588,10 +403,29 @@ const App = () => {
 
       wheel.y *= mouse
       wheel.x *= mouse
+      target.x += wheel.x;
+      target.y -= wheel.y
 
-      tx += wheel.x
-      ty -= wheel.y
     }
+
+    function tick() {
+      const xDiff = target.x - cx
+      const yDiff = target.y - cy
+
+      cx += xDiff * 0.085
+      cx = Math.round(cx * 100) / 100
+
+      cy += yDiff * 0.085
+      cy = Math.round(cy * 100) / 100
+
+      planes.length
+        && planes.forEach(plane =>
+          plane.update({ x: cx, y: cy }, { x: ww / 1.5, y: wh / 1.5 }))
+
+      renderer.render(scene, camera)
+    }
+
+
 
     return () => mountRef.current.removeChild(renderer.domElement);
   }, []);
@@ -601,24 +435,11 @@ const App = () => {
       <div className="background"></div>
       <div ref={mountRef}></div>
       <div className="grid js-grid">
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1476&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1476&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1476&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1476&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"></figure></div>
-        <div><figure className="js-plane" data-src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1476&q=80"></figure></div>
       </div>
     </>
   );
 }
+
+
 
 export default App;
