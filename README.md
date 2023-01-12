@@ -1,5 +1,7 @@
 # React infinite scrollable and draggable (WebGL)grid
 
+Attention ⚠️ Project deeply WIP (nasty code that have to be cleaned)
+
 This project was deeply inspired by [Infinite scrollable and draggable (WebGL)grid](https://codepen.io/ReGGae/pen/eYGyLrP), thank you Jesper !
 
 ## Introduction
