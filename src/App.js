@@ -71,11 +71,52 @@ void main() {
   gl_FragColor.a = texture.a * uOpacity;
 }
 `
+
+
+const fragmentShaderPlane = `
+precision mediump float;
+#define GLSLIFY 1
+
+uniform float uProgress;
+uniform float uOpacity;
+
+uniform bool isSafari;
+
+varying vec2 vUv;
+
+vec3 mixColor(vec3 color, float progress) {
+    return mix(vec3(0.737, 0.843, 0.871), color, progress);
+  }     
+void main() {  
+  vec3 white = vec3(1.0);
+  vec3 black = vec3(0.0);
+  
+  vec3 bwMix = mix(white, black, uProgress);
+  
+  // Safari\n  if (isSafari) {
+    
+  gl_FragColor.rgb = mixColor(bwMix, uOpacity);
+  
+  gl_FragColor.a = 1.0;        
+  } else {
+        gl_FragColor.rgb = bwMix;
+            gl_FragColor.a = 1.0;
+               gl_FragColor.a *= uOpacity;
+                }    }
+`
+
+
 const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
-const material = new THREE.ShaderMaterial({
-  fragmentShader,
-  vertexShader,
+const geometryPlane = new THREE.PlaneGeometry(1, 1, 1, 1)
+const planeMaterial = new THREE.ShaderMaterial({
+  fragmentShader: fragmentShaderPlane,
+  vertexShader: vertexShader,
 })
+const material = new THREE.ShaderMaterial({
+  fragmentShader: fragmentShader,
+  vertexShader: vertexShader,
+})
+
 
 
 const App = () => {
@@ -97,7 +138,129 @@ const App = () => {
   var el = document.querySelector('.js-grid')
   var planes = []
 
+  class MainMesh extends THREE.Object3D {
+    init(el, i) {
+      this.el = el
+      this.i = i
+      this.x = 0
+      this.y = 0
+      this.center = { value: 1 }
+
+
+
+      this.my = 1 - ((i % 5) * 0.1)
+      this.createArt()
+      this.createPlane()
+    }
+
+    createArt() {
+      this.art = new ArtPlane()
+      this.art.init(this.el, this.i)
+      this.add(this.art)
+      this.art.resize()
+    }
+
+    createPlane() {
+      this.plane = new Plane()
+      this.plane.init(this.el, this.i)
+      this.add(this.plane)
+      this.plane.resize()
+    }
+
+    update = (x, y, max, diff) => {
+      this.art.update(x, y, max, diff)
+      this.plane.update(x, y, max, diff)
+    }
+
+    hide() {
+      //TODO
+
+    }
+
+    inCenter() {
+      //TODO
+    }
+
+    reveal() {
+      //TODO
+
+    }
+  }
+
   class Plane extends THREE.Object3D {
+    init(el, i) {
+      this.el = el
+      this.x = 0
+      this.y = 0
+      this.center = { value: 1 }
+
+      this.my = 1 - ((i % 5) * 0.1)
+
+
+      this.geometry = geometryPlane
+      this.material = planeMaterial.clone()
+      this.isInCenter = false
+      this.material.uniforms = {
+        u_size: { value: new THREE.Vector2(1, 1) },
+        u_diff: { value: 0 },
+        uOpacity: { value: 100 },
+        uProgress: { value: 0.02 },
+      }
+
+
+      this.mesh = new THREE.Mesh(this.geometry, this.material)
+      this.mesh.renderOrder = 0
+      this.add(this.mesh)
+      this.resize()
+    }
+
+    update = (x, y, max, diff) => {
+      const { right, bottom } = this.rect
+      const { u_diff } = this.material.uniforms
+
+      this.y = gsap.utils.wrap(
+        -(max.y - bottom),
+        bottom,
+        y * this.my
+      ) - this.yOffset
+
+      this.x = gsap.utils.wrap(
+        -(max.x - right),
+        right,
+        x
+      ) - this.xOffset
+
+      u_diff.value = diff
+
+      this.position.x = this.x * this.center.value
+      this.position.y = this.y * this.center.value
+    }
+
+    hide() {
+      //TODO
+    }
+
+
+
+
+    resize() {
+
+      this.rect = this.el.getBoundingClientRect()
+      const { left, top, width, height } = this.rect
+
+
+      this.xOffset = (left + (width / 2)) - (ww / 2)
+      this.yOffset = (top + (height / 2)) - (wh / 2)
+
+      this.position.x = this.xOffset
+      this.position.y = this.yOffset
+
+
+      this.mesh.scale.set(width, height, 1)
+    }
+  }
+
+  class ArtPlane extends THREE.Object3D {
     init(el, i) {
       this.el = el
       this.x = 0
@@ -130,6 +293,7 @@ const App = () => {
       })
 
       this.mesh = new THREE.Mesh(this.geometry, this.material)
+      this.mesh.renderOrder = 1
       this.add(this.mesh)
       this.resize()
     }
@@ -156,17 +320,6 @@ const App = () => {
       this.position.y = this.y * this.center.value
     }
 
-
-    // hide() {
-    //   const t = [this.plane.program.uniforms.uOpacity, this.art.program.uniforms.uOpacity, ...this.textObjects.map((t => t.program.uniforms.uOpacity))];
-    //   this.opacityTween && (this.opacityTween.kill(), this.opacityTween = null), this.opacityTween = x.default.to(t, {
-    //     value: 0,
-    //     duration: 1,
-    //     ease: "expo.inOut"
-    //   })
-    // }
-
-
     hide() {
       //this.material.uniforms.uOpacity.value = 0
       if (!this.isInCenter) {
@@ -183,7 +336,6 @@ const App = () => {
     }
 
     inCenter() {
-
       this.mesh.renderOrder = 1
       this.isInCenter = true
       const mesh = this.mesh
@@ -198,10 +350,6 @@ const App = () => {
     reveal() {
       if (this.isInCenter) {
         const mesh = this.mesh
-        // gsap.to(mesh.position, {
-        //   x: this.currentOffset.x, y: this.currentOffset.y, duration: 1, ease: "expo.inOut"
-        // }
-        // )
         gsap.to(this.center, {
           value: 1, duration: 1, ease: "expo.inOut"
         }
@@ -226,6 +374,7 @@ const App = () => {
     resize() {
 
       this.rect = this.el.getBoundingClientRect()
+      console.log(this.rect)
       const { left, top, width, height } = this.rect
 
       const { u_res, u_toRes, u_pos, u_offset } = this.material.uniforms
@@ -239,7 +388,7 @@ const App = () => {
       u_res.value.x = width
       u_res.value.y = height
 
-      this.mesh.scale.set(width, height, 1)
+      this.mesh.scale.set(width / 1.3, height / 1.3, 1)
     }
   }
 
@@ -272,6 +421,8 @@ const App = () => {
     addTick()
     resize()
 
+    console.log(scene)
+
 
     function addPlanes() {
       let planesDiv = []
@@ -279,7 +430,7 @@ const App = () => {
       scene.clear()
       planesDiv = [...document.querySelectorAll('.js-plane')]
       planesDiv.map((el, i) => {
-        const plane = new Plane()
+        const plane = new MainMesh()
         plane.init(el, i)
         planes.push(plane)
         scene.add(plane)
