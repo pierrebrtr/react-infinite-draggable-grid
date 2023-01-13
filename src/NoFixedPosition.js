@@ -424,6 +424,27 @@ const App = () => {
     console.log(scene)
 
 
+    // for (let i = 0; i < 12; i++) {
+    //   for (let j = 0; j < 12; j++) {
+    //     const plane = new MainMesh()
+    //     plane.init(i, new THREE.Vector3((170 * i), (170 * j), 0))
+    //     planes.push(plane)
+    //     scene.add(plane)
+    //   }
+    // }
+
+
+    ///////
+
+    ////
+
+    // const plane1 = new MainMesh()
+    // plane1.init(i, new THREE.Vector3((170 * i), (170 * j), 0))
+    // planes.push(plane1)
+    // scene.add(plane1)
+
+
+
     function addPlanes() {
       let planesDiv = []
       planes = []
